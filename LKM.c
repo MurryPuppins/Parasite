@@ -18,7 +18,7 @@ static struct nf_hook_ops *nfho = NULL;
 static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
 	struct iphdr *iph;
-	struct udphdr *udph;
+	struct tcphdr *tcph;
 	if (!skb)
 		return NF_ACCEPT;
 
@@ -28,9 +28,9 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 		if (ntohs(tcph->dest) == 22) {
 			return NF_ACCEPT;
 		}
-        else if (ntohs(tcph->dest) == 80) {
-            return NF_DROP;
-        }
+		else if (ntohs(tcph->dest) == 80) {
+            		return NF_DROP;
+        	}
 	}
 	
 	return NF_ACCEPT;
@@ -48,6 +48,7 @@ static int __init LKM_init(void)
 	nfho->priority 	= NF_IP_PRI_FIRST;		/* max hook priority */
 	
 	nf_register_net_hook(&init_net, nfho);
+	return 0;
 }
 
 // Uninitializes/removes the LKM
@@ -59,3 +60,4 @@ static void __exit LKM_exit(void)
 
 module_init(LKM_init);
 module_exit(LKM_exit);
+MODULE_LICENSE("GPL");
