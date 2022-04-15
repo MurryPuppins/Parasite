@@ -4,7 +4,7 @@ This is a rootkit written in the form of a Linux kernel module (LKM), which curr
 ## Installation
 NOTE - Read the disclaimer if you haven't already. Additionally, it is *highly recommended* that you use this in a VM!
 
-TODO: Insert working kernel versions/distros
+Works with kernel versions 5.0 and greater, tested and built natively on 5.4.0
 
 1. Update system and ensure linux-headers is installed
 ```sh
