@@ -10,7 +10,7 @@ The following steps assume that you have already assumed root
 
 1. Update your system via your respective package-manager, and ensure linux-headers is installed
 ```sh
-apt update && apt upgrade && apt install linux-headers-$(uname -r) -y
+apt update && apt install linux-headers-$(uname -r) -y
 ```
 
 2. Clone repo (or download manually)
@@ -84,4 +84,7 @@ depmod -a
 The author is in no way responsible for any illegal use of this software. It is provided purely as an educational proof of concept. I am also not responsible for any damages or mishaps that may happen in the course of using this software. Use at your own risk!
 
 ## References
-TODO: Will add shortly
+https://infosecwriteups.com/linux-kernel-communication-part-1-netfilter-hooks-15c07a5a5c4e
+https://github.com/d3adzo/poetry
+http://vger.kernel.org/~davem/skb_data.html
+https://github.com/h3xduck/Umbra/blob/master/kernel/src/netfilter_manager.c
