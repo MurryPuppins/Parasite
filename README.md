@@ -84,7 +84,7 @@ depmod -a
 The author is in no way responsible for any illegal use of this software. It is provided purely as an educational proof of concept. I am also not responsible for any damages or mishaps that may happen in the course of using this software. Use at your own risk!
 
 ## References
-https://infosecwriteups.com/linux-kernel-communication-part-1-netfilter-hooks-15c07a5a5c4e
-https://github.com/d3adzo/poetry
-http://vger.kernel.org/~davem/skb_data.html
+https://infosecwriteups.com/linux-kernel-communication-part-1-netfilter-hooks-15c07a5a5c4e <br />
+https://github.com/d3adzo/poetry <br />
+http://vger.kernel.org/~davem/skb_data.html <br />
 https://github.com/h3xduck/Umbra/blob/master/kernel/src/netfilter_manager.c
