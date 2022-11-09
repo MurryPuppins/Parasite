@@ -7,7 +7,7 @@ MAGENTA = "\033[1;35m"
 GREEN = "\033[1;32m"
 BLUE = "\033[1;34m"
 cRESET  = "\033[0m"
-prompt = GREEN + "(scraper.py)" + BLUE + "::> " + cRESET
+prompt = GREEN + "(operator.py)" + BLUE + "::> " + cRESET
 
 art = """
  ______   ______     ______     ______     ______     __     ______   ______    
@@ -99,6 +99,8 @@ def main():
     # Commands
     while True:
         cmd = input(prompt)
+        if cmd == "":
+            continue
         if cmd == "help":
             print(help)
         if cmd == "exit":

